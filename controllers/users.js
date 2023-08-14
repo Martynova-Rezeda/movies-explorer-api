@@ -4,6 +4,12 @@ const User = require('../models/user');
 const NotFoundError = require('../errors/NotFoundError');
 const BadRequestError = require('../errors/BadRequestError');
 const ConflictError = require('../errors/ConflictError');
+const {
+  STATUS_CREATED,
+  UNIQUE_ERROR,
+  BAD_REQUEST_ERROR_MESSAGE,
+  NOT_FOUND_ERROR_MESSAGE, CONFLICT_ERROR_MESSAGE,
+} = require('../utils/constants');
 
 const { NODE_ENV, JWT_SECRET } = require('../utils/configurations');
 
@@ -31,16 +37,16 @@ const createUser = (req, res, next) => {
   // Возвращаем записанные в базу данные пользователю
     .then((user) => {
       const { _id } = user;
-      res.status(201).send({
+      res.status(STATUS_CREATED).send({
         name, email, _id,
       });
     })
   // если данные не записались, возвращаем ошибку
     .catch((err) => {
-      if (err.code === 11000) {
-        next(new ConflictError(`Пользователь с таким  email: ${email} уже существует.`));
+      if (err.code === UNIQUE_ERROR) {
+        next(new ConflictError(CONFLICT_ERROR_MESSAGE));
       } else if (err.name === 'ValidationError') {
-        next(new BadRequestError('Переданы некорректные данные при создании пользователя'));
+        next(new BadRequestError(BAD_REQUEST_ERROR_MESSAGE));
       } else { next(err); }
     });
 };
@@ -50,13 +56,13 @@ const getUser = (req, res, next) => {
   User.findById(userId)
     .then((user) => {
       if (!user) {
-        throw new NotFoundError('Пользователь по указанному id не найден.');
+        throw new NotFoundError(NOT_FOUND_ERROR_MESSAGE);
       }
       return res.send(user);
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        next(new BadRequestError('Переданы некорректные данные для вызова пользователя.'));
+        next(new BadRequestError(BAD_REQUEST_ERROR_MESSAGE));
       } else {
         next(err);
       }
@@ -70,16 +76,16 @@ const updateUser = (req, res, next) => {
   })
     .then((user) => {
       if (!user) {
-        throw new NotFoundError('Пользователь по указанному id не найден.');
+        throw new NotFoundError(NOT_FOUND_ERROR_MESSAGE);
       }
       return res.send(user);
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') {
-        next(new BadRequestError('Переданы некорректные данные при обновлении профиля'));
-      } else {
-        next(err);
-      }
+      if (err.code === UNIQUE_ERROR) {
+        next(new ConflictError(CONFLICT_ERROR_MESSAGE));
+      } else if (err.name === 'ValidationError') {
+        next(new BadRequestError(BAD_REQUEST_ERROR_MESSAGE));
+      } else { next(err); }
     });
 };
 module.exports = {
